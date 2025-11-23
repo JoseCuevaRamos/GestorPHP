@@ -22,8 +22,10 @@ RUN a2enmod rewrite \
 
 # Copiar sólo los archivos de dependencias primero para cachear la instalación
 COPY composer.json composer.lock* ./
-# Install PHP dependencies without optimizing autoloader yet (we'll optimize after copying source)
-RUN composer install --no-interaction --no-dev --ignore-platform-reqs
+# Install PHP dependencies but skip autoloader generation until source is present
+# This prevents Composer from scanning classmap paths (like "database/") that
+# haven't been copied into the image yet.
+RUN composer install --no-interaction --no-dev --no-autoloader --ignore-platform-reqs
 
 # Copiar el resto del código
 COPY . .
