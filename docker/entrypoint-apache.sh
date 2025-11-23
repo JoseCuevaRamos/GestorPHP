@@ -23,10 +23,26 @@ done
 mkdir -p /var/www/html/logs
 chown -R www-data:www-data /var/www/html/logs || true
 
-# Run migrations if phinx is available
+# Run migrations if phinx is available. Try a few times (DB may still be warming up).
 if [ -x "vendor/bin/phinx" ]; then
-  echo "[entrypoint] Running phinx migrations..."
-  vendor/bin/phinx migrate -e ${PHINX_ENV:-production} || echo "[entrypoint] phinx migrate finished with non-zero exit"
+  echo "[entrypoint] phinx found, attempting migrations (env: ${PHINX_ENV:-production})"
+  MAX_ATTEMPTS=5
+  attempt=1
+  while [ $attempt -le $MAX_ATTEMPTS ]; do
+    echo "[entrypoint] phinx attempt #${attempt}..."
+    if vendor/bin/phinx migrate -e ${PHINX_ENV:-production}; then
+      echo "[entrypoint] phinx migrate succeeded"
+      break
+    else
+      echo "[entrypoint] phinx migrate failed on attempt ${attempt}"
+      attempt=$((attempt+1))
+      sleep 3
+    fi
+  done
+  if [ $attempt -gt $MAX_ATTEMPTS ]; then
+    echo "[entrypoint] phinx migrate failed after ${MAX_ATTEMPTS} attempts, aborting start"
+    exit 1
+  fi
 else
   echo "[entrypoint] phinx not found, skipping migrations"
 fi

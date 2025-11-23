@@ -1,6 +1,8 @@
 <?php
     require_once __DIR__ . '/database/generator/BaseMigration.php';
 
+// phinx configuration: prefer environment variables so CI/containers and the app use the
+// same database settings. Fallback to the original defaults for local dev.
 return [
     'paths' => [
         'migrations' => '%%PHINX_CONFIG_DIR%%/database/migrations',
@@ -11,24 +13,35 @@ return [
         'default_environment' => 'development',
         'development' => [
             'adapter' => 'mysql',
-            'host' => 'db',
-            'name' => 'conduit',
-            'user' => 'root',
-            'pass' => 'secret',
-            'port' => '3306',
+            'host' => getenv('DB_HOST') ?: '127.0.0.1',
+            'name' => getenv('DB_DATABASE') ?: 'conduit',
+            'user' => getenv('DB_USERNAME') ?: 'root',
+            'pass' => getenv('DB_PASSWORD') ?: 'secret',
+            'port' => getenv('DB_PORT') ?: '3306',
             'charset' => 'utf8',
         ],
         'production' => [
             'adapter' => 'mysql',
-            'host' => 'db',
-            'name' => 'conduit',
-            'user' => 'root',
-            'pass' => 'secret',
-            'port' => '3306',
+            'host' => getenv('DB_HOST') ?: 'db',
+            'name' => getenv('DB_DATABASE') ?: 'conduit',
+            'user' => getenv('DB_USERNAME') ?: 'root',
+            'pass' => getenv('DB_PASSWORD') ?: 'secret',
+            'port' => getenv('DB_PORT') ?: '3306',
             'charset' => 'utf8',
-            'options' => [
-                PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
-            ],
+            'options' => (function () {
+                $opts = [];
+                // support DB_SSL_CA env var to set the PDO SSL CA path inside the container
+                $ca = getenv('DB_SSL_CA');
+                if ($ca) {
+                    if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
+                        $opts[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+                    } else {
+                        // fallback numeric value if PDO::MYSQL_ATTR_SSL_CA is not defined
+                        $opts[1000] = $ca;
+                    }
+                }
+                return $opts;
+            })(),
         ],
     ],
     'version_order' => 'creation'
