@@ -52,6 +52,24 @@ if [ -n "${DB_SSL_CA:-}" ]; then
   fi
 fi
 
+# Diagnostic logging: show what CA path will be used by Phinx/PDO and basic file info.
+if [ -n "${DB_SSL_CA:-}" ]; then
+  echo "[entrypoint] DEBUG: DB_SSL_CA=${DB_SSL_CA}"
+  if [ -f "${DB_SSL_CA}" ]; then
+    echo "[entrypoint] DEBUG: CA file exists at ${DB_SSL_CA} - listing details:";
+    ls -l "${DB_SSL_CA}" || true
+    echo "[entrypoint] DEBUG: Showing first 10 lines of CA (BEGIN/--- header expected):";
+    # show first 10 lines so we can verify BEGIN/END without dumping whole cert
+    head -n 10 "${DB_SSL_CA}" || true
+    echo "[entrypoint] DEBUG: Showing last 2 lines of CA (END line expected):";
+    tail -n 2 "${DB_SSL_CA}" || true
+  else
+    echo "[entrypoint] DEBUG: CA file does not exist at ${DB_SSL_CA}"
+  fi
+else
+  echo "[entrypoint] DEBUG: DB_SSL_CA not set"
+fi
+
 # Run migrations if phinx is available. Try a few times (DB may still be warming up).
 if [ -x "vendor/bin/phinx" ]; then
   echo "[entrypoint] phinx found, attempting migrations (env: ${PHINX_ENV:-production})"
