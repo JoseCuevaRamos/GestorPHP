@@ -22,7 +22,8 @@ RUN a2enmod rewrite \
 
 # Copiar sólo los archivos de dependencias primero para cachear la instalación
 COPY composer.json composer.lock* ./
-RUN composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs
+# Install PHP dependencies without optimizing autoloader yet (we'll optimize after copying source)
+RUN composer install --no-interaction --no-dev --ignore-platform-reqs
 
 # Copiar el resto del código
 COPY . .
@@ -30,6 +31,9 @@ COPY . .
 # Crear carpetas necesarias y ajustar permisos
 RUN mkdir -p storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
+
+# Ahora que todo el código está presente, generar autoload optimizado
+RUN composer dump-autoload --optimize || true
 
 # Copiar php.ini-production (debe existir en el repo que Render construye)
 COPY php.ini-production /usr/local/etc/php/php.ini
