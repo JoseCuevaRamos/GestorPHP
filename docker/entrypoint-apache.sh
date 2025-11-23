@@ -25,6 +25,17 @@ chown -R www-data:www-data /var/www/html/logs || true
 
 # If DB_SSL_CA is provided directly as an env var (PEM text), write it to a file.
 # This avoids committing the CA into the repo while allowing the container to use it.
+# Also support DB_SSL_CA_B64 (base64-encoded PEM) for platforms that don't preserve newlines.
+if [ -n "${DB_SSL_CA_B64:-}" ]; then
+  CA_PATH_B64="/etc/ssl/certs/tidb_ca_from_b64.pem"
+  echo "[entrypoint] Decoding DB_SSL_CA_B64 into ${CA_PATH_B64}"
+  mkdir -p "$(dirname "$CA_PATH_B64")"
+  # decode base64; tolerate both single-line and wrapped input
+  echo "$DB_SSL_CA_B64" | tr -d '\r' | base64 -d > "$CA_PATH_B64" 2>/dev/null || (echo "[entrypoint] ERROR: failed to decode DB_SSL_CA_B64" && false)
+  chmod 644 "$CA_PATH_B64" || true
+  export DB_SSL_CA="$CA_PATH_B64"
+fi
+
 if [ -n "${DB_SSL_CA:-}" ]; then
   # If DB_SSL_CA points to an existing file path inside the container, keep it.
   if [ -f "${DB_SSL_CA}" ]; then
