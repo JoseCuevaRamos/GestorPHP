@@ -57,8 +57,8 @@ return [
             'username'  => getenv('DB_USERNAME'),
             'password'  => getenv('DB_PASSWORD'),
             'port'      => getenv('DB_PORT'),
-            'charset'   => 'utf8',
-            'collation' => 'utf8_unicode_ci',
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
             'prefix'    => '',
             'options'   => $ssl_ca_path ? [
                 PDO::MYSQL_ATTR_SSL_CA => $ssl_ca_path,

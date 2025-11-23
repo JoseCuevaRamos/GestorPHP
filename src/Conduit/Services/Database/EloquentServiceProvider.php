@@ -27,7 +27,9 @@ class EloquentServiceProvider implements ServiceProviderInterface
             $sslCaPath = $this->resolveSslCaPath();
             if ($sslCaPath) {
                 $options[\PDO::MYSQL_ATTR_SSL_CA] = $sslCaPath;
+                error_log('[db] Using SSL CA for Eloquent at ' . $sslCaPath);
             }
+                error_log('[db] WARNING: SSL CA path not resolved for Eloquent connection.');
         }
 
         $capsule->addConnection([
