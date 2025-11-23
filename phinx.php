@@ -36,8 +36,8 @@ return [
                     if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
                         $opts[PDO::MYSQL_ATTR_SSL_CA] = $ca;
                     } else {
-                        // fallback numeric value if PDO::MYSQL_ATTR_SSL_CA is not defined
-                        $opts[1000] = $ca;
+                        // fallback: use 1009 (actual value in this build) if constant not defined
+                        $opts[1009] = $ca;
                     }
                 }
                 return $opts;
