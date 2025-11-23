@@ -25,17 +25,6 @@ chown -R www-data:www-data /var/www/html/logs || true
 
 # If DB_SSL_CA is provided directly as an env var (PEM text), write it to a file.
 # This avoids committing the CA into the repo while allowing the container to use it.
-# Also support DB_SSL_CA_B64 (base64-encoded PEM) for platforms that don't preserve newlines.
-if [ -n "${DB_SSL_CA_B64:-}" ]; then
-  CA_PATH_B64="/etc/ssl/certs/tidb_ca_from_b64.pem"
-  echo "[entrypoint] Decoding DB_SSL_CA_B64 into ${CA_PATH_B64}"
-  mkdir -p "$(dirname "$CA_PATH_B64")"
-  # decode base64; tolerate both single-line and wrapped input
-  echo "$DB_SSL_CA_B64" | tr -d '\r' | base64 -d > "$CA_PATH_B64" 2>/dev/null || (echo "[entrypoint] ERROR: failed to decode DB_SSL_CA_B64" && false)
-  chmod 644 "$CA_PATH_B64" || true
-  export DB_SSL_CA="$CA_PATH_B64"
-fi
-
 if [ -n "${DB_SSL_CA:-}" ]; then
   # If DB_SSL_CA points to an existing file path inside the container, keep it.
   if [ -f "${DB_SSL_CA}" ]; then
@@ -50,6 +39,36 @@ if [ -n "${DB_SSL_CA:-}" ]; then
     chmod 644 "$CA_PATH" || true
     export DB_SSL_CA="$CA_PATH"
   fi
+fi
+
+# If no DB_SSL_CA env var was set but the platform mounted a secret file in a common
+# Docker secret path (e.g. /run/secrets/...), prefer that file. This lets platforms
+# that provide secret-files work without extra env var manipulation.
+if [ -z "${DB_SSL_CA:-}" ]; then
+  COMMON_SECRET_PATHS=(/run/secrets/tidb_ca.pem /run/secrets/DB_SSL_CA /run/secrets/db_ssl_ca /etc/secrets/tidb_ca.pem /etc/ssl/secrets/tidb_ca.pem /secrets/tidb_ca.pem)
+  for p in "${COMMON_SECRET_PATHS[@]}"; do
+    if [ -f "$p" ]; then
+      echo "[entrypoint] Found CA secret file at $p, setting DB_SSL_CA to that path"
+      export DB_SSL_CA="$p"
+      break
+    fi
+  done
+fi
+
+# If still not found, look for any .pem files in common secret directories (handles names with spaces)
+if [ -z "${DB_SSL_CA:-}" ]; then
+  for dir in /run/secrets /etc/secrets /etc/ssl/secrets /secrets; do
+    if [ -d "$dir" ]; then
+      # shellcheck disable=SC2086
+      for f in "$dir"/*.pem; do
+        if [ -f "$f" ]; then
+          echo "[entrypoint] Found CA .pem file at $f, setting DB_SSL_CA to that path"
+          export DB_SSL_CA="$f"
+          break 2
+        fi
+      done
+    fi
+  done
 fi
 
 # Diagnostic logging: show what CA path will be used by Phinx/PDO and basic file info.
