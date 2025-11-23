@@ -23,12 +23,13 @@ done
 mkdir -p /var/www/html/logs
 chown -R www-data:www-data /var/www/html/logs || true
 
-# If DB_SSL_CA is provided directly as an env var (PEM text), write it to a file.
+# If DB_SSL_CA is provided directly as an env var (PEM text or file path), write it to a file.
 # This avoids committing the CA into the repo while allowing the container to use it.
 if [ -n "${DB_SSL_CA:-}" ]; then
   # If DB_SSL_CA points to an existing file path inside the container, keep it.
   if [ -f "${DB_SSL_CA}" ]; then
     echo "[entrypoint] DB_SSL_CA is a file path and exists: ${DB_SSL_CA}"
+    export DB_SSL_CA_PATH="${DB_SSL_CA_PATH:-${DB_SSL_CA}}"
   else
     # Otherwise assume DB_SSL_CA is the PEM contents; write to standard path
     CA_PATH="/etc/ssl/certs/tidb_ca.pem"
@@ -38,7 +39,18 @@ if [ -n "${DB_SSL_CA:-}" ]; then
     printf '%s' "$DB_SSL_CA" > "$CA_PATH"
     chmod 644 "$CA_PATH" || true
     export DB_SSL_CA="$CA_PATH"
+    export DB_SSL_CA_PATH="$CA_PATH"
   fi
+fi
+
+# If DB_SSL_CA_B64 is provided, decode to file (unless a path is already set)
+if [ -z "${DB_SSL_CA_PATH:-}" ] && [ -n "${DB_SSL_CA_B64:-}" ]; then
+  CA_PATH="/etc/ssl/certs/tidb_ca_from_b64.pem"
+  echo "[entrypoint] Writing DB SSL CA from DB_SSL_CA_B64 to ${CA_PATH}"
+  printf '%s' "${DB_SSL_CA_B64}" | base64 -d > "$CA_PATH"
+  chmod 644 "$CA_PATH" || true
+  export DB_SSL_CA="$CA_PATH"
+  export DB_SSL_CA_PATH="$CA_PATH"
 fi
 
 # If no DB_SSL_CA env var was set but the platform mounted a secret file in a common
@@ -50,6 +62,7 @@ if [ -z "${DB_SSL_CA:-}" ]; then
     if [ -f "$p" ]; then
       echo "[entrypoint] Found CA secret file at $p, setting DB_SSL_CA to that path"
       export DB_SSL_CA="$p"
+      export DB_SSL_CA_PATH="$p"
       break
     fi
   done
@@ -64,6 +77,7 @@ if [ -z "${DB_SSL_CA:-}" ]; then
         if [ -f "$f" ]; then
           echo "[entrypoint] Found CA .pem file at $f, setting DB_SSL_CA to that path"
           export DB_SSL_CA="$f"
+          export DB_SSL_CA_PATH="$f"
           break 2
         fi
       done
