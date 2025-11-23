@@ -25,7 +25,7 @@ class EloquentServiceProvider implements ServiceProviderInterface
         // Inyectar opciones SSL al driver de PDO/Eloquent
         if (getenv('APP_ENV') === 'production') {
             $config['options'] = [
-                PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
+                \PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
             ];
         }
 
@@ -38,6 +38,8 @@ class EloquentServiceProvider implements ServiceProviderInterface
             'charset'   => 'utf8',
             'collation' => 'utf8_unicode_ci',
             'prefix'    => '',
+            'port'      => isset($config['port']) ? $config['port'] : null,
+            'options'   => isset($config['options']) ? $config['options'] : [],
         ]);
 
 // Make this Capsule instance available globally via static methods... (optional)
