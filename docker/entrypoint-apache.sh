@@ -19,6 +19,10 @@ until (echo > /dev/tcp/${DB_HOST}/${DB_PORT}) >/dev/null 2>&1; do
   sleep ${SLEEP_SECONDS}
 done
 
+# Ensure logs directory exists and is writable by www-data
+mkdir -p /var/www/html/logs
+chown -R www-data:www-data /var/www/html/logs || true
+
 # Run migrations if phinx is available
 if [ -x "vendor/bin/phinx" ]; then
   echo "[entrypoint] Running phinx migrations..."

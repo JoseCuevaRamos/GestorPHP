@@ -19,6 +19,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN a2enmod rewrite \
     && sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|' /etc/apache2/sites-available/000-default.conf \
     && sed -i 's/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+# Suppress Apache FQDN warning in container logs
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # Copiar sólo los archivos de dependencias primero para cachear la instalación
 COPY composer.json composer.lock* ./
@@ -31,8 +33,8 @@ RUN composer install --no-interaction --no-dev --no-autoloader --ignore-platform
 COPY . .
 
 # Crear carpetas necesarias y ajustar permisos
-RUN mkdir -p storage bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache
+RUN mkdir -p storage bootstrap/cache logs \
+    && chown -R www-data:www-data storage bootstrap/cache logs
 
 # Ahora que todo el código está presente, generar autoload optimizado
 RUN composer dump-autoload --optimize || true
