@@ -23,6 +23,24 @@ done
 mkdir -p /var/www/html/logs
 chown -R www-data:www-data /var/www/html/logs || true
 
+# If DB_SSL_CA is provided directly as an env var (PEM text), write it to a file.
+# This avoids committing the CA into the repo while allowing the container to use it.
+if [ -n "${DB_SSL_CA:-}" ]; then
+  # If DB_SSL_CA points to an existing file path inside the container, keep it.
+  if [ -f "${DB_SSL_CA}" ]; then
+    echo "[entrypoint] DB_SSL_CA is a file path and exists: ${DB_SSL_CA}"
+  else
+    # Otherwise assume DB_SSL_CA is the PEM contents; write to standard path
+    CA_PATH="/etc/ssl/certs/tidb_ca.pem"
+    echo "[entrypoint] Writing DB SSL CA contents from env to ${CA_PATH}"
+    mkdir -p "$(dirname "$CA_PATH")"
+    # Preserve newlines when writing the env var to file
+    printf '%s' "$DB_SSL_CA" > "$CA_PATH"
+    chmod 644 "$CA_PATH" || true
+    export DB_SSL_CA="$CA_PATH"
+  fi
+fi
+
 # Run migrations if phinx is available. Try a few times (DB may still be warming up).
 if [ -x "vendor/bin/phinx" ]; then
   echo "[entrypoint] phinx found, attempting migrations (env: ${PHINX_ENV:-production})"
