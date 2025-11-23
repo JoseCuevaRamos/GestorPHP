@@ -1,3 +1,13 @@
+.git
+.gitignore
+credentials/
+vendor/
+node_modules/
+tests/
+.env
+.DS_Store
+docker-compose.yml
+.vscode/
 # Ignorar carpetas de dependencias
 vendor/
 

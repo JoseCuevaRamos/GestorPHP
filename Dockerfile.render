@@ -1,0 +1,39 @@
+FROM php:8.1-apache
+
+WORKDIR /var/www/html
+
+# Instalar dependencias del sistema y extensiones PHP necesarias
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git unzip libzip-dev zlib1g-dev netcat \
+    && docker-php-ext-install pdo pdo_mysql zip opcache \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar Composer desde la imagen oficial (versión 2.x)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Habilitar mod_rewrite y permitir .htaccess
+RUN a2enmod rewrite \
+    && sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|' /etc/apache2/sites-available/000-default.conf \
+    && sed -i 's/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+
+# Copiar sólo los archivos de dependencias primero para cachear la instalación
+COPY composer.json composer.lock* ./
+RUN composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs
+
+# Copiar el resto del código
+COPY . .
+
+# Crear carpetas necesarias y ajustar permisos
+RUN mkdir -p storage bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+# Copiar php.ini-production (debe existir en el repo que Render construye)
+COPY php.ini-production /usr/local/etc/php/php.ini
+
+EXPOSE 80
+
+COPY docker/entrypoint-apache.sh /usr/local/bin/entrypoint-apache.sh
+RUN chmod +x /usr/local/bin/entrypoint-apache.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint-apache.sh"]
+CMD ["apache2-foreground"]
