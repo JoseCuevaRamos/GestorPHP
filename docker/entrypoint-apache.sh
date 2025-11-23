@@ -89,6 +89,13 @@ else
   echo "[entrypoint] DEBUG: DB_SSL_CA not set"
 fi
 
+# If a PDO SSL diagnostic script exists, run it so logs show PHP/PDO/openssl status and connection attempts.
+if [ -f /var/www/html/docker/pdo_ssl_test.php ]; then
+  echo "[entrypoint] Running docker/pdo_ssl_test.php to collect PDO/SSL diagnostics..."
+  php /var/www/html/docker/pdo_ssl_test.php || true
+  echo "[entrypoint] Finished PDO/SSL diagnostic script"
+fi
+
 # Run migrations if phinx is available. Try a few times (DB may still be warming up).
 if [ -x "vendor/bin/phinx" ]; then
   echo "[entrypoint] phinx found, attempting migrations (env: ${PHINX_ENV:-production})"
