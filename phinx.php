@@ -30,15 +30,10 @@ return [
             'charset' => 'utf8',
             'options' => (function () {
                 $opts = [];
-                // support DB_SSL_CA env var to set the PDO SSL CA path inside the container
+                // Always use 1009 for SSL CA option to avoid ambiguity
                 $ca = getenv('DB_SSL_CA');
                 if ($ca) {
-                    if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
-                        $opts[PDO::MYSQL_ATTR_SSL_CA] = $ca;
-                    } else {
-                        // fallback: use 1009 (actual value in this build) if constant not defined
-                        $opts[1009] = $ca;
-                    }
+                    $opts[1009] = $ca;
                 }
                 return $opts;
             })(),
